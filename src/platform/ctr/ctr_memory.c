@@ -5,7 +5,7 @@
 
 #include "ctr_memory.h"
 
-typedef int (*ctr_callback_type)(void);
+typedef s32 (*ctr_callback_type)(void);
 
 int __stacksize__ = 2 * 1024 * 1024;
 
@@ -17,7 +17,7 @@ static unsigned int s1, s2, s3, s0;
 // Internal function that enables all services. This must be run via
 // svcBackdoor.
 //-----------------------------------------------------------------------------
-static void ctrEnableAllServices(void)
+static s32 ctrEnableAllServices(void)
 {
 	__asm__ volatile("cpsid aif");
 
@@ -32,7 +32,7 @@ static void ctrEnableAllServices(void)
 	svc_access_control[1]=0xFFFFFFFF;
 	svc_access_control[2]=0xFFFFFFFF;
 	svc_access_control[3]=0x3FFFFFFF;
-
+	return 0;
 }
 
 //-----------------------------------------------------------------------------
@@ -41,9 +41,9 @@ static void ctrEnableAllServices(void)
 //-----------------------------------------------------------------------------
 int _SetMemoryPermission(void *buffer, int size, int permission)
 {
-	unsigned int currentHandle;
+	Handle currentHandle;
 	svcDuplicateHandle(&currentHandle, 0xFFFF8001);
-	int res = svcControlProcessMemory(currentHandle, buffer, 0, size, MEMOP_PROT, permission);
+	int res = svcControlProcessMemory(currentHandle, (u32)buffer, 0, (u32)size, MEMOP_PROT, (u32)permission);
 	svcCloseHandle(currentHandle);
 
 	return res;

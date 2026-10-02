@@ -13,7 +13,13 @@ void ctr_wait_for_input();
 //void __system_initArgv();
 
 void ctr_conf_select();
-//void ctr_check_conf(int argc, char* argv[]);
+/* Bottom-screen folder browser. Fills out with a host path.
+ * CTR_PICK_NONE: start the DOS prompt. CTR_PICK_CONF: a .conf file.
+ * CTR_PICK_RUN: a program, disk image, or a folder to mount as C:. */
+#define CTR_PICK_NONE 0
+#define CTR_PICK_CONF 1
+#define CTR_PICK_RUN  2
+int ctr_pick_launch(char *out, int outlen);
 
 extern char conf_path[256];
 

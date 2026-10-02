@@ -27,6 +27,8 @@
 #include <stdarg.h>
 #include <malloc.h>
 #include <sys/types.h>
+#include <sys/stat.h>
+#include <cctype>
 
 #include "cross.h"
 #include "SDL.h"
@@ -587,8 +589,26 @@ int main(int argc, char* argv[]) {
 			}
 		}
 
-		// if none found => user selection list of all .conf found in 'config' folder.
-		if(!control->configfiles.size()) {ctr_conf_select();control->ParseConfigFile((char*)conf_path);}
+		// Bottom-screen folder browser when nothing was passed on the command line.
+		char ctr_launch_path[512];
+		int ctr_launch_kind = CTR_PICK_NONE;
+		ctr_launch_path[0] = 0;
+		if(!control->configfiles.size()) {
+			unsigned int which = 1;
+			std::string arg;
+			bool has_target = false;
+			while (control->cmdline->FindCommand(which++, arg)) {
+				if (!arg.empty() && arg[0] != '-') {
+					has_target = true;
+					break;
+				}
+			}
+			if (!has_target) {
+				ctr_launch_kind = ctr_pick_launch(ctr_launch_path, (int)sizeof(ctr_launch_path));
+				if (ctr_launch_kind == CTR_PICK_CONF)
+					control->ParseConfigFile(ctr_launch_path);
+			}
+		}
 
 		// if none found => parse localdir conf
 		if(!control->configfiles.size()) control->ParseConfigFile("dosbox.conf");
@@ -612,6 +632,41 @@ int main(int argc, char* argv[]) {
 				control->ParseConfigFile(config_combined.c_str());
 			} else {
 				LOG_MSG("CONFIG: Using default settings. Create a configfile to change them");
+			}
+		}
+
+		if (ctr_launch_kind == CTR_PICK_RUN && ctr_launch_path[0]) {
+			struct stat st;
+			Section_line *sec = dynamic_cast<Section_line *>(control->GetSection("autoexec"));
+			if (sec && stat(ctr_launch_path, &st) == 0) {
+				std::string cmd;
+				if (S_ISDIR(st.st_mode)) {
+					cmd = std::string("MOUNT -u C\r\nMOUNT C \"") + ctr_launch_path + "\"\r\nC:\r\n";
+				} else {
+					std::string full(ctr_launch_path);
+					size_t slash = full.find_last_of('/');
+					if (slash != std::string::npos) {
+						std::string dir = full.substr(0, slash);
+						std::string name = full.substr(slash + 1);
+						std::string upper = name;
+						for (size_t i = 0; i < upper.size(); i++)
+							upper[i] = (char)toupper((unsigned char)upper[i]);
+						cmd = std::string("MOUNT -u C\r\nMOUNT C \"") + dir + "\"\r\nC:\r\n";
+						if (upper.size() >= 4 && upper.compare(upper.size() - 4, 4, ".BAT") == 0)
+							cmd += "CALL " + name + "\r\n";
+						else if (upper.size() >= 4 && (upper.compare(upper.size() - 4, 4, ".IMG") == 0 || upper.compare(upper.size() - 4, 4, ".IMA") == 0))
+							cmd += "BOOT " + name + "\r\n";
+						else if (upper.size() >= 4 && (upper.compare(upper.size() - 4, 4, ".ISO") == 0 || upper.compare(upper.size() - 4, 4, ".CUE") == 0))
+							cmd += std::string("IMGMOUNT D \"") + name + "\" -t iso\r\n";
+						else
+							cmd += name + "\r\n";
+					}
+				}
+				if (!cmd.empty()) {
+					if (!sec->data.empty() && sec->data[sec->data.size() - 1] != '\n')
+						sec->data += "\r\n";
+					sec->data += cmd;
+				}
 			}
 		}
 

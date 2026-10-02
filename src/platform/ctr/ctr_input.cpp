@@ -201,7 +201,7 @@ struct ctr_mouse_t {
 	bool btn_1_press;
 	bool btn_1_held;
 };
-ctr_mouse_t ctr_mouse = { 1, 5, false, false, false, false };
+ctr_mouse_t ctr_mouse = { 0, 5, false, false, false, false };
 
 
 void gfxDrawScreen(u8 KeyboadState, s16 T_X, s16 T_Y, u8 Key)
@@ -1374,21 +1374,6 @@ void button_event()
 	joy_btn_1_0_press = false;
 	joy_btn_1_1_press = false;
 
-	if (kHeld & KEY_L)
-	{
-		joy_btn_0_0_press = true;
-		if (!joy_btn_0_0_held)
-		{
-			joy_btn_0_0_held = true;
-			JOYSTICK_Button(0,0,true);
-		}
-	}
-	else if ((joy_btn_0_0_held)&&(!joy_btn_0_0_press))
-	{
-		joy_btn_0_0_held = false;
-		JOYSTICK_Button(0,0,false);
-	}
-
 	if (kHeld & KEY_ZL)
 	{
 		joy_btn_0_1_press = true;
@@ -1402,21 +1387,6 @@ void button_event()
 	{
 		joy_btn_0_1_held = false;
 		JOYSTICK_Button(0,1,false);
-	}
-
-	if (kHeld & KEY_R)
-	{
-		joy_btn_1_0_press = true;
-		if (!joy_btn_1_0_held)
-		{
-			joy_btn_1_0_held = true;
-			JOYSTICK_Button(1,0,true);
-		}
-	}
-	else if ((joy_btn_1_0_held)&&(!joy_btn_1_0_press))
-	{
-		joy_btn_1_0_held = false;
-		JOYSTICK_Button(1,0,false);
 	}
 
 	if (kHeld & KEY_ZR)
@@ -1437,7 +1407,7 @@ void button_event()
 	ctr_mouse.btn_0_press = false;
 	ctr_mouse.btn_1_press = false;
 
-	if (kHeld & KEY_R)
+	if (kHeld & KEY_L)
 	{
 		ctr_mouse.btn_0_press = true;
 		if (!ctr_mouse.btn_0_held)
@@ -1452,7 +1422,7 @@ void button_event()
 		Mouse_ButtonReleased(0);
 	}
 
-	if (kHeld & KEY_ZR)
+	if (kHeld & KEY_R)
 	{
 		ctr_mouse.btn_1_press = true;
 		if (!ctr_mouse.btn_1_held)
@@ -1483,6 +1453,17 @@ void axis_event()
 	float joy1_x = (float) cstick.dx / 150.0f;
 	float joy1_y = (float)-cstick.dy / 150.0f;
 
+	float mouse_x = 0.0f;
+	float mouse_y = 0.0f;
+	if (circle.dx <= -20 || circle.dx >= 20)
+		mouse_x += joy0_x;
+	if (circle.dy <= -20 || circle.dy >= 20)
+		mouse_y += joy0_y;
+	if (cstick.dx <= -20 || cstick.dx >= 20)
+		mouse_x += joy1_x;
+	if (cstick.dy <= -20 || cstick.dy >= 20)
+		mouse_y += joy1_y;
+
 	if(ctr_bottom_state_joystick.joy0_axis != -1)
 	{
 		JOYSTICK_Move_X(ctr_bottom_state_joystick.joy0_axis, joy0_x);
@@ -1497,21 +1478,12 @@ void axis_event()
 
 	if(ctr_mouse.axis != -1)
 	{
-		if (ctr_mouse.axis == 0)
-			Mouse_CursorMoved(
-					(float)joy0_x*((float)ctr_mouse.multiplier/10),
-					(float)joy0_y*((float)ctr_mouse.multiplier/10),
-					0,
-					0,
-					true);
-
-		else if (ctr_mouse.axis == 1)
-			Mouse_CursorMoved(
-					(float)joy1_x*((float)ctr_mouse.multiplier/10),
-					(float)joy1_y*((float)ctr_mouse.multiplier/10),
-					0,
-					0,
-					true);
+		Mouse_CursorMoved(
+				(float)mouse_x*((float)ctr_mouse.multiplier/10),
+				(float)mouse_y*((float)ctr_mouse.multiplier/10),
+				0,
+				0,
+				true);
 	}
 	return;
 }

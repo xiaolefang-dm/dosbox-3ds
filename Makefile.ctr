@@ -201,8 +201,16 @@ endif
 .PHONY: all clean
 
 #---------------------------------------------------------------------------------
-all: $(BUILD) $(GFXBUILD) $(DEPSDIR) $(ROMFS_T3XFILES) $(T3XHFILES)
+all: $(BUILD) $(GFXBUILD) $(DEPSDIR) $(GFX_HDR) $(GFX_BIN) $(ROMFS_T3XFILES) $(T3XHFILES)
 	@$(MAKE) --no-print-directory -C $(BUILD) -f $(CURDIR)/Makefile.ctr
+
+%_bgr.h %.bgr.o: %.bgr
+	@echo $(notdir $<)
+	@$(TOOLDIR)/bin2s -a 4 -H $$(echo $< | tr . _).h $< | $(AS) -o $<.o
+
+%.bgr: %.png
+	@echo $(notdir $<)
+	@ffmpeg -hide_banner -loglevel error -vcodec png -i $< -vcodec rawvideo -f rawvideo -vf "transpose=1" -pix_fmt rgb565 $@
 
 $(BUILD):
 
@@ -264,7 +272,7 @@ endif
 #---------------------------------------------------------------------------------
 .PHONY : all
 
-all               : $(OUTPUT).3dsx $(OUTPUT).cia
+all               : $(OUTPUT).3dsx
 
 $(OUTPUT).3dsx    : $(OUTPUT).elf $(TARGET).smdh
 
@@ -280,7 +288,7 @@ $(TARGET).bnr     : $(APP_BANNER_IMAGE) $(APP_BANNER_AUDIO)
 	@$(BANNERTOOL) makebanner -i $(APP_BANNER_IMAGE) -a $(APP_BANNER_AUDIO) -o $(TARGET).bnr > /dev/null
 
 $(TARGET).smdh    : $(APP_ICON)
-	@$(BANNERTOOL) makesmdh -s "$(APP_TITLE)" -l "$(APP_DESCRIPTION)" -p "$(APP_AUTHOR)" -i $(APP_ICON) -o $(TARGET).smdh > /dev/null
+	@smdhtool --create "$(APP_TITLE)" "$(APP_DESCRIPTION)" "$(APP_AUTHOR)" $(APP_ICON) $(TARGET).smdh
 
 #---------------------------------------------------------------------------------
 # you need a rule like this for each extension you use as binary data
@@ -301,13 +309,13 @@ $(TARGET).smdh    : $(APP_ICON)
 
 %_bgr.h %.bgr.o: %.bgr
 	@echo $(notdir $<)
-	@$(TOOLDIR)/bin2s -a 4 -H `(echo $(<)) | tr . _)`.h $< | $(AS) -o $(<).o
+	@$(TOOLDIR)/bin2s -a 4 -H $$(echo $< | tr . _).h $< | $(AS) -o $<.o
 	
 #---------------------------------------------------------------------------------
 
 %.bgr: %.png
 	@echo $(notdir $<)
-	@ffmpeg -vcodec png -i $< -vcodec rawvideo -f rawvideo -vf "transpose=1" -pix_fmt rgb565 $@
+	@ffmpeg -hide_banner -loglevel error -vcodec png -i $< -vcodec rawvideo -f rawvideo -vf "transpose=1" -pix_fmt rgb565 $@
 
 #---------------------------------------------------------------------------------
 # rules for assembling GPU shaders
