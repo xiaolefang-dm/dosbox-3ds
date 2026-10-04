@@ -257,7 +257,8 @@ static Bits get_min_imm_gen_len(Bit32u imm) {
 
 // move a 32bit constant value into dest_reg
 static void gen_mov_dword_to_reg_imm(HostReg dest_reg,Bit32u imm) {
-#if C_TARGETCPU == ARMV7LE || C_TARGETCPU == ARMV6LE
+#if C_TARGETCPU == ARMV7LE
+	/* MOVW/MOVT are ARMv7 / ARMv6T2 only — not available on ARM11 (ARMv6K). */
 	Bit32u scale;
 
 	if ( val_is_operand2(imm, &scale) ) {

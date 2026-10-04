@@ -65,13 +65,6 @@
 #define SOC_ALIGN       0x1000
 #define SOC_BUFFERSIZE  0x100000
 
-#ifdef CTR_GFXEND_THREADED
-	LightLock mutex;
-	Thread thread;
-	volatile bool thread_started;
-	volatile bool kill_thread;
-#endif
-
 static u32 *SOC_buffer = NULL;
 
 extern ctr_settings_t ctr_settings;
@@ -164,10 +157,8 @@ void GFX_ResetScreen(void) {
 }
 
 void GFX_TearDown(void) {
-	#ifndef CTR_GFXEND_THREADED
-		if (sdl.updating)
-			GFX_EndUpdate( 0 );
-	#endif
+	if (sdl.updating)
+		GFX_EndUpdate( 0 );
 
 	if (sdl.blit.surface) {
 		SDL_FreeSurface(sdl.blit.surface);
@@ -257,43 +248,6 @@ bool GFX_StartUpdate(Bit8u * & pixels,Bitu & pitch) {
 	return true;
 }
 
-void GFX_EndUpdate_Thread() {
-	thread_started = true;
-	const Bit16u *changedLines = 0;
-	while (!kill_thread)
-	{
-		sdl.updating=false;
-
-		if (SDL_MUSTLOCK(sdl.surface)) {
-			if (sdl.blit.surface) {
-				SDL_UnlockSurface(sdl.blit.surface);
-				int Blit = SDL_BlitSurface( sdl.blit.surface, 0, sdl.surface, &sdl.clip );
-				LOG(LOG_MISC,LOG_WARN)("BlitSurface returned %d",Blit);
-			} else {
-				SDL_UnlockSurface(sdl.surface);
-			}
-			SDL_Flip(sdl.surface);
-		} else if (changedLines) {
-			Bitu y = 0, index = 0, rectCount = 0;
-			while (y < sdl.draw.height) {
-				if (!(index & 1)) {
-					y += changedLines[index];
-				} else {
-					SDL_Rect *rect = &sdl.updateRects[rectCount++];
-					rect->x = sdl.clip.x;
-					rect->y = sdl.clip.y + y;
-					rect->w = (Bit16u)sdl.draw.width;
-					rect->h = changedLines[index];
-						y += changedLines[index];
-				}
-				index++;
-			}
-			if (rectCount)
-				SDL_UpdateRects( sdl.surface, rectCount, sdl.updateRects );
-		}
-	}
-}
-
 void GFX_EndUpdate( const Bit16u *changedLines ) {
 	if (!RENDER_GetForceUpdate() && !sdl.updating)
 		return;
@@ -330,9 +284,6 @@ void GFX_EndUpdate( const Bit16u *changedLines ) {
 }
 
 void GFX_SetPalette(Bitu start,Bitu count,GFX_PalEntry * entries) {
-	#ifdef CTR_GFXEND_THREADED
-		LightLock_Lock(&mutex);
-	#endif
 	/* I should probably not change the GFX_PalEntry :) */
 	if (sdl.surface->flags & SDL_HWPALETTE) {
 		if (!SDL_SetPalette(sdl.surface,SDL_PHYSPAL,(SDL_Color *)entries,start,count)) {
@@ -343,9 +294,6 @@ void GFX_SetPalette(Bitu start,Bitu count,GFX_PalEntry * entries) {
 			E_Exit("SDL:Can't set palette");
 		}
 	}
-	#ifdef CTR_GFXEND_THREADED
-		LightLock_Unlock(&mutex);
-	#endif
 }
 
 Bitu GFX_GetRGB(Bit8u red,Bit8u green,Bit8u blue) {
@@ -375,40 +323,18 @@ void GFX_ShowMsg(char const* format,...) {
 }
 
 void GFX_Stop() {
-	#ifdef CTR_GFXEND_THREADED
-		LightLock_Lock(&mutex);
-	#endif
 	if (sdl.updating)
 		GFX_EndUpdate( 0 );
 	sdl.active=false;
-	#ifdef CTR_GFXEND_THREADED
-		LightLock_Unlock(&mutex);
-	#endif
 }
 
 void GFX_Start() {
 	sdl.active=true;
-	#ifdef CTR_GFXEND_THREADED
-		LightLock_Init(&mutex);
-		kill_thread=false;
-
-		if (!RENDER_GetForceUpdate() && !sdl.updating)
-			return;
-
-		if (!thread_started)
-		{
-			//I think Core 1 at 70% should be plenty even for New 3DS Stuff.
-			thread = threadCreate(GFX_EndUpdate_Thread, 0, 2 * 1024, 0x18, 1, true);
-		}
-	#endif
 }
 
 static void GUI_ShutDown(Section * /*sec*/) {
 	GFX_Stop();
 	if (sdl.draw.callback) (sdl.draw.callback)( GFX_CallBackStop );
-	#ifdef CTR_GFXEND_THREADED
-		kill_thread=true;
-	#endif
 }
 
 static void GUI_StartUp(Section * sec) {
@@ -667,6 +593,34 @@ int main(int argc, char* argv[]) {
 						sec->data += "\r\n";
 					sec->data += cmd;
 				}
+			}
+		}
+
+		/*
+		 * Eiketsuden / mid-90s SVGA: force dynrec + max cycles.
+		 * Old 3DS dynrec only has room for 3MB DOS RAM (cache eats the rest);
+		 * New 3DS can keep a fuller memsize.
+		 */
+		{
+			bool isN3DS = false;
+			APT_CheckNew3DS(&isN3DS);
+
+			Section_prop *cpu = static_cast<Section_prop *>(control->GetSection("cpu"));
+			if (cpu) {
+				cpu->HandleInputline("core=dynamic");
+				cpu->HandleInputline("cycles=max");
+			}
+			Section_prop *render = static_cast<Section_prop *>(control->GetSection("render"));
+			if (render) {
+				render->HandleInputline("frameskip=1");
+				render->HandleInputline("scaler=none");
+			}
+			Section_prop *dosbox = static_cast<Section_prop *>(control->GetSection("dosbox"));
+			if (dosbox) {
+				if (isN3DS)
+					dosbox->HandleInputline("memsize=16");
+				else
+					dosbox->HandleInputline("memsize=3");
 			}
 		}
 

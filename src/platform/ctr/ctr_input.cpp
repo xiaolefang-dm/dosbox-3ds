@@ -72,6 +72,7 @@ typedef struct
 } ctr_bottom_mode_t;
 ctr_bottom_mode_t CurrentMode = { MODE_IDLE, 0, 0, 0, 0, false, false, false, false, false, false, false, false, false };
 
+/* Default: Scale to fit + keep aspect; system menu can switch to Crop 400x240. */
 ctr_settings_t ctr_settings = { true, true };
 
 typedef struct
@@ -358,7 +359,7 @@ void gfxDrawScreen(u8 KeyboadState, s16 T_X, s16 T_Y, u8 Key)
 			char str_btn_0[32];
 			char str_btn_1[32];
 
-			sprintf(str_btn_0, ctr_settings.gfx_scale_to_fit? "Scale to fit: True":"Scale to fit: False");
+			sprintf(str_btn_0, ctr_settings.gfx_scale_to_fit? "Scale to fit: True":"Crop 400x240: on");
 			sprintf(str_btn_1, ctr_settings.gfx_keep_aspect?  "Keep aspect:  True":"Keep aspect:  False");
 
 			gfxDrawText(GFX_BOTTOM, GFX_LEFT, NULL, str_btn_0,  214,  10);

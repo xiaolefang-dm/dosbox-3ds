@@ -27,6 +27,8 @@
 	#include "risc_armv4le-o3.h"
 #else
 	#if defined(__THUMB_INTERWORK__)
+		/* 3DS/devkitARM defines this; keep Thumb IW — ARM o3 emits
+		 * encodings that ARM11 rejects as undefined instruction. */
 		#include "risc_armv4le-thumb-iw.h"
 	#else
 		#include "risc_armv4le-o3.h"

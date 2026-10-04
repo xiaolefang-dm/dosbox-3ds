@@ -9,6 +9,7 @@ int  _SetMemoryPermission(void *buffer, int size, int permission);
 void _InvalidateInstructionCache(void);
 void _FlushDataCache(void);
 void _InvalidateAndFlushCaches(void);
+void _InvalidateAndFlushCachesRange(void *start, unsigned size);
 int  _InitializeSvcHack(void);
 
 #ifdef __cplusplus

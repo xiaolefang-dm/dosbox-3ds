@@ -89,7 +89,8 @@ typedef Bit8u HostReg;
 
 static void cache_block_closing(const Bit8u* block_start,Bitu block_size) {
 #if defined(__3DS__)
-	_InvalidateAndFlushCaches();
+	/* Only flush the block that was just written — full I/D wipe is too costly for SVGA titles. */
+	_InvalidateAndFlushCachesRange((void *)block_start, (unsigned)block_size);
 #elif (__ARM_EABI__)
 	//flush cache - eabi
 	register unsigned long _beg __asm ("a1") = (unsigned long)(block_start);				// block start

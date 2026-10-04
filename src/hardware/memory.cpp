@@ -23,6 +23,7 @@
 #include "setup.h"
 #include "paging.h"
 #include "regs.h"
+#include "control.h"
 
 #include <string.h>
 
@@ -555,8 +556,12 @@ public:
 		/* Setup the Physical Page Links */
 		Bitu memsize=section->Get_int("memsize");
 
-		//const char * core=section->Get_string("core");
-		std::string core(section->Get_string("core"));
+		/* "core" lives in [cpu], not [dosbox] — reading it from this section always returned "". */
+		std::string core;
+		{
+			Section_prop *cpu_sec = static_cast<Section_prop *>(control->GetSection("cpu"));
+			if (cpu_sec) core = cpu_sec->Get_string("core");
+		}
 
 		#ifdef __3DS__
 		{
@@ -567,20 +572,15 @@ public:
 			/* max 63 to solve problems with certain xms handlers */
 			if (isN3DS) {
 				if (memsize > MAX_MEMORY-1) {
-					E_Exit("Maximum New 3DS memory size is %d MB",MAX_MEMORY - 1);
+					LOG_MSG("Maximum New 3DS memory size is %d MB, clamping.", MAX_MEMORY - 1);
 					memsize = MAX_MEMORY-1;
 				}
 			} else {
-				if (core == "dynamic") {
-					if (memsize > MAX_MEMORY_O3DS_DYN-1) {
-						E_Exit("Maximum Old 3DS memory for Dynrec core is %d MB", MAX_MEMORY_O3DS_DYN - 1);
-						memsize = MAX_MEMORY_O3DS_DYN-1;
-					}
-				} else {
-					if (memsize > MAX_MEMORY_O3DS_NOR-1) {
-						E_Exit("Maximum Old 3DS memory for Normal core is %d MB", MAX_MEMORY_O3DS_NOR - 1);
-						memsize = MAX_MEMORY_O3DS_NOR-1;
-					}
+				Bitu o3ds_max = (core == "dynamic") ? (MAX_MEMORY_O3DS_DYN - 1) : (MAX_MEMORY_O3DS_NOR - 1);
+				if (memsize > o3ds_max) {
+					LOG_MSG("Old 3DS: clamping memsize from %d MB to %d MB (core=%s).",
+						(int)memsize, (int)o3ds_max, core.c_str());
+					memsize = o3ds_max;
 				}
 			}
 

@@ -108,7 +108,8 @@ CFLAGS      := -g -Wall -O3 -mword-relocations \
 			   -fomit-frame-pointer \
                $(ARCH)
 
-CFLAGS      += $(INCLUDE) -D__3DS__ -DCTR_GFXEND_THREADED
+# CTR_GFXEND_THREADED left off: the worker never syncs with the producer and can busy-spin core1.
+CFLAGS      += $(INCLUDE) -D__3DS__
 
 CXXFLAGS    := $(CFLAGS) -std=gnu++11 -fpermissive \
                -Wno-unused-parameter -Wno-strict-aliasing
